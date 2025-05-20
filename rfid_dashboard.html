@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard RFID - Mottu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --success-color: #00b894;
+            --warning-color: #fdcb6e;
+            --danger-color: #d63031;
+            --light-color: #f8f9fa;
+            --dark-color: #2d3436;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f6fa;
+            color: #2d3436;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: none;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            border-bottom: none;
+            padding: 15px 20px;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color) !important;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-disponivel {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .status-manutencao {
+            background-color: var(--warning-color);
+            color: var(--dark-color);
+        }
+        
+        .status-reservada {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .status-nao-cadastrada {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        
+        .patio-map {
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        
+        .patio-area {
+            position: absolute;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .patio-area:hover {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .patio-area-title {
+            padding: 10px;
+            background-color: #dee2e6;
+            font-weight: 600;
+            border-bottom: 1px solid #ced4da;
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .patio-area-content {
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .moto-item {
+            margin: 8px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .moto-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .patio-entrance, .patio-exit {
+            position: absolute;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: 600;
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .patio-entrance {
+            background-color: #74b9ff;
+            border: 1px solid #0984e3;
+            color: white;
+        }
+        
+        .patio-exit {
+            background-color: #ff7675;
+            border: 1px solid #d63031;
+            color: white;
+        }
+        
+        .patio-entrance:hover, .patio-exit:hover {
+            transform: scale(1.05);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-bottom: 20px;
+        }
+        
+        .table-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .table th {
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa;
+            z-index: 1;
+        }
+        
+        .highlight-row {
+            animation: highlight 2s ease-out;
+        }
+        
+        @keyframes highlight {
+            0% { background-color: rgba(108, 92, 231, 0.3); }
+            100% { background-color: transparent; }
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-card h3 {
+            font-size: 2rem;
+            margin: 10px 0;
+            font-weight: 700;
+        }
+        
+        .stats-card p {
+            font-size: 0.9rem;
+            margin: 0;
+            opacity: 0.8;
+        }
+        
+        .stats-primary {
+            background-color: var(--primary-color);
+        }
+        
+        .stats-success {
+            background-color: var(--success-color);
+        }
+        
+        .stats-warning {
+            background-color: var(--warning-color);
+            color: var(--dark-color);
+        }
+        
+        .stats-danger {
+            background-color: var(--danger-color);
+        }
+        
+        .btn-action {
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .logo-text {
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.8rem;
+        }
+        
+        .nav-link {
+            font-weight: 600;
+            color: var(--dark-color);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+        
+        .nav-link.active {
+            color: var(--primary-color) !important;
+            border-bottom: 3px solid var(--primary-color);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(108, 92, 231, 0.25);
+        }
+        
+        /* Animações */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .patio-map {
+                height: 500px;
+            }
+            
+            .stats-card {
+                margin-bottom: 10px;
+            }
+            
+            .card-header {
+                padding: 10px 15px;
+            }
+            
+            .card-body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="mb-4">
+            <nav class="navbar navbar-expand-lg navbar-light bg-white rounded-3 shadow-sm p-3">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="#">
+                        <span class="logo-text">MOTTU</span> <span class="text-muted">RFID</span>
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">Histórico</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">Relatórios</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">Configurações</a>
+                            </li>
+                        </ul>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success me-2" id="connection-status">
+                                <i class="bi bi-circle-fill me-1"></i> Conectado
+                            </span>
+                            <button class="btn btn-outline-primary btn-action" id="simulate-btn">
+                                <i class="bi bi-play-fill"></i> Simular Leitura
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+        
+        <!-- Status Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="stats-card stats-primary fade-in">
+                    <i class="bi bi-speedometer2 fs-1"></i>
+                    <h3 id="total-readings">0</h3>
+                    <p>Total de Leituras</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stats-card stats-success fade-in" style="animation-delay: 0.1s">
+                    <i class="bi bi-check-circle fs-1"></i>
+                    <h3 id="available-count">0</h3>
+                    <p>Motos Disponíveis</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stats-card stats-warning fade-in" style="animation-delay: 0.2s">
+                    <i class="bi bi-tools fs-1"></i>
+                    <h3 id="maintenance-count">0</h3>
+                    <p>Em Manutenção</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stats-card stats-danger fade-in" style="animation-delay: 0.3s">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <h3 id="unknown-count">0</h3>
+                    <p>Não Cadastradas</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Map Section -->
+            <div class="col-lg-8 mb-4">
+                <div class="card fade-in">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-map"></i> Mapa do Pátio</span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-light active" data-view="all">Todos</button>
+                            <button class="btn btn-sm btn-outline-light" data-view="available">Disponíveis</button>
+                            <button class="btn btn-sm btn-outline-light" data-view="maintenance">Manutenção</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="patio-map" id="patio-map">
+                            <!-- Área A - Estacionamento -->
+                            <div class="patio-area" style="top: 10px; left: 10px; width: 45%; height: 380px;">
+                                <div class="patio-area-title">Área A - Estacionamento</div>
+                                <div class="patio-area-content" id="area-a" style="height: 340px;"></div>
+                            </div>
+                            
+                            <!-- Área B - Manutenção -->
+                            <div class="patio-area" style="top: 10px; right: 10px; width: 45%; height: 185px;">
+                                <div class="patio-area-title">Área B - Manutenção</div>
+                                <div class="patio-area-content" id="area-b" style="height: 145px;"></div>
+                            </div>
+                            
+                            <!-- Área C - Saída -->
+                            <div class="patio-area" style="bottom: 10px; right: 10px; width: 45%; height: 185px;">
+                                <div class="patio-area-title">Área C - Saída</div>
+                                <div class="patio-area-content" id="area-c" style="height: 145px;"></div>
+                            </div>
+                            
+                            <!-- Entrada -->
+                            <div class="patio-entrance" style="top: 145px; left: 45%; width: 10%; height: 40px; line-height: 24px;">
+                                <i class="bi bi-box-arrow-in-right"></i> Entrada
+                            </div>
+                            
+                            <!-- Saída -->
+                            <div class="patio-exit" style="bottom: 145px; left: 45%; width: 10%; height: 40px; line-height: 24px;">
+                                <i class="bi bi-box-arrow-right"></i> Saída
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Charts Section -->
+            <div class="col-lg-4 mb-4">
+                <div class="card fade-in" style="animation-delay: 0.1s">
+                    <div class="card-header">
+                        <i class="bi bi-pie-chart"></i> Estatísticas
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container mb-4">
+                            <canvas id="status-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="location-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Readings Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card fade-in" style="animation-delay: 0.2s">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-list-ul"></i> Últimas Leituras RFID</span>
+                        <button class="btn btn-sm btn-outline-light" id="clear-table">
+                            <i class="bi bi-trash"></i> Limpar
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-container">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Horário</th>
+                                        <th>ID da Tag</th>
+                                        <th>Modelo</th>
+                                        <th>Placa</th>
+                                        <th>Localização</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="readings-table">
+                                    <!-- Dados serão inseridos aqui dinamicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Simulation Controls -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card fade-in" style="animation-delay: 0.3s">
+                    <div class="card-header">
+                        <i class="bi bi-sliders"></i> Controles de Simulação
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="simulation-speed" class="form-label">Velocidade de Simulação</label>
+                                    <input type="range" class="form-range" id="simulation-speed" min="1" max="10" value="5">
+                                    <div class="d-flex justify-content-between">
+                                        <small>Lenta</small>
+                                        <small>Rápida</small>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="simulation-mode" class="form-label">Modo de Simulação</label>
+                                    <select class="form-select" id="simulation-mode">
+                                        <option value="manual">Manual (botão simular)</option>
+                                        <option value="auto">Automático (contínuo)</option>
+                                        <option value="random">Aleatório</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Selecionar Tag para Simulação</label>
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-primary tag-btn" data-tag="1">Honda CG 160 (04A5B9C2)</button>
+                                        <button class="btn btn-outline-primary tag-btn" data-tag="2">Yamaha Factor 150 (1A2B3C4D)</button>
+                                        <button class="btn btn-outline-primary tag-btn" data-tag="3">Honda Biz 125 (AABB1122)</button>
+                                        <button class="btn btn-outline-primary tag-btn" data-tag="4">Suzuki Yes 125 (55667788)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="mt-4 text-center text-muted">
+            <p>Sistema de Rastreamento RFID - Mottu &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Dados simulados das motos
+        const motosDB = [
+            {
+                id: "04A5B9C2",
+                modelo: "Honda CG 160",
+                placa: "ABC1234",
+                status: "Disponível",
+                localizacao: "Patio A - Entrada"
+            },
+            {
+                id: "1A2B3C4D",
+                modelo: "Yamaha Factor 150",
+                placa: "XYZ5678",
+                status: "Em manutenção",
+                localizacao: "Patio B - Manutenção"
+            },
+            {
+                id: "AABB1122",
+                modelo: "Honda Biz 125",
+                placa: "DEF9012",
+                status: "Reservada",
+                localizacao: "Patio A - Entrada"
+            },
+            {
+                id: "55667788",
+                modelo: "Suzuki Yes 125",
+                placa: "GHI3456",
+                status: "Disponível",
+                localizacao: "Patio C - Saída"
+            }
+        ];
+        
+        // Estatísticas
+        let stats = {
+            totalReadings: 0,
+            statusCounts: {
+                "Disponível": 0,
+                "Em manutenção": 0,
+                "Reservada": 0,
+                "Não cadastrada": 0
+            },
+            locationCounts: {
+                "Patio A - Entrada": 0,
+                "Patio B - Manutenção": 0,
+                "Patio C - Saída": 0
+            }
+        };
+        
+        // Referências aos gráficos
+        let statusChart;
+        let locationChart;
+        
+        // Referência ao intervalo de simulação automática
+        let autoSimInterval;
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar gráficos
+            initCharts();
+            
+            // Configurar eventos
+            document.getElementById('simulate-btn').addEventListener('click', simulateReading);
+            document.getElementById('clear-table').addEventListener('click', clearTable);
+            document.getElementById('simulation-mode').addEventListener('change', handleSimulationModeChange);
+            
+            // Configurar botões de tag
+            document.querySelectorAll('.tag-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tagIndex = parseInt(this.getAttribute('data-tag')) - 1;
+                    processReading(tagIndex);
+                });
+            });
+            
+            // Iniciar com uma leitura simulada para demonstração
+            setTimeout(() => {
+                processReading(0);
+            }, 1000);
+        });
+        
+        // Inicializar gráficos
+        function initCharts() {
+            // Gráfico de status
+            const statusCtx = document.getElementById('status-chart').getContext('2d');
+            statusChart = new Chart(statusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Disponível', 'Em manutenção', 'Reservada', 'Não cadastrada'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#00b894', // Verde - Disponível
+                            '#fdcb6e', // Amarelo - Em manutenção
+                            '#a29bfe', // Roxo - Reservada
+                            '#d63031'  // Vermelho - Não cadastrada
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Status das Motos',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Gráfico de localização
+            const locationCtx = document.getElementById('location-chart').getContext('2d');
+            locationChart = new Chart(locationCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Patio A - Entrada', 'Patio B - Manutenção', 'Patio C - Saída'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#74b9ff', // Azul
+                            '#ff7675', // Rosa
+                            '#55efc4'  // Verde água
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Leituras por Localização',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Simular leitura aleatória
+        function simulateReading() {
+            const randomIndex = Math.floor(Math.random() * motosDB.length);
+            processReading(randomIndex);
+        }
+        
+        // Processar leitura de uma tag
+        function processReading(index) {
+            // Obter dados da moto
+            const moto = motosDB[index];
+            
+            // Atualizar estatísticas
+            stats.totalReadings++;
+            stats.statusCounts[moto.status] = (stats.statusCounts[moto.status] || 0) + 1;
+            stats.locationCounts[moto.localizacao] = (stats.locationCounts[moto.localizacao] || 0) + 1;
+            
+            // Atualizar contadores
+            document.getElementById('total-readings').textContent = stats.totalReadings;
+            document.getElementById('available-count').textContent = stats.statusCounts['Disponível'] || 0;
+            document.getElementById('maintenance-count').textContent = stats.statusCounts['Em manutenção'] || 0;
+            document.getElementById('unknown-count').textContent = stats.statusCounts['Não cadastrada'] || 0;
+            
+            // Adicionar à tabela
+            addReadingToTable(moto);
+            
+            // Atualizar mapa
+            updateMap(moto);
+            
+            // Atualizar gráficos
+            updateCharts();
+        }
+        
+        // Adicionar leitura à tabela
+        function addReadingToTable(moto) {
+            const table = document.getElementById('readings-table');
+            const row = document.createElement('tr');
+            row.className = 'highlight-row';
+            
+            // Determinar classe de status
+            let statusClass = '';
+            if (moto.status === 'Disponível') {
+                statusClass = 'status-disponivel';
+            } else if (moto.status === 'Em manutenção') {
+                statusClass = 'status-manutencao';
+            } else if (moto.status === 'Reservada') {
+                statusClass = 'status-reservada';
+            } else if (moto.status === 'Não cadastrada') {
+                statusClass = 'status-nao-cadastrada';
+            }
+            
+            // Formatar data e hora
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            // Criar células da tabela
+            row.innerHTML = `
+                <td>${timeString}</td>
+                <td>${moto.id}</td>
+                <td>${moto.modelo}</td>
+                <td>${moto.placa}</td>
+                <td>${moto.localizacao}</td>
+                <td><span class="status-badge ${statusClass}">${moto.status}</span></td>
+            `;
+            
+            // Adicionar à tabela (no início)
+            if (table.firstChild) {
+                table.insertBefore(row, table.firstChild);
+            } else {
+                table.appendChild(row);
+            }
+            
+            // Limitar a 50 entradas
+            if (table.children.length > 50) {
+                table.removeChild(table.lastChild);
+            }
+        }
+        
+        // Atualizar mapa do pátio
+        function updateMap(moto) {
+            const id = moto.id;
+            const modelo = moto.modelo;
+            const status = moto.status;
+            const localizacao = moto.localizacao;
+            
+            // Determinar área baseada na localização
+            let areaId = 'area-a'; // Padrão para Área A
+            
+            if (localizacao.includes('Entrada')) {
+                areaId = 'area-a';
+            } else if (localizacao.includes('Manutenção')) {
+                areaId = 'area-b';
+            } else if (localizacao.includes('Saída')) {
+                areaId = 'area-c';
+            }
+            
+            // Cor baseada no status
+            let statusColor = '#aaaaaa'; // Cinza para desconhecido
+            
+            if (status === 'Disponível') {
+                statusColor = '#00b894'; // Verde
+            } else if (status === 'Em manutenção') {
+                statusColor = '#fdcb6e'; // Amarelo
+            } else if (status === 'Reservada') {
+                statusColor = '#a29bfe'; // Roxo
+            } else if (status === 'Não cadastrada') {
+                statusColor = '#d63031'; // Vermelho
+            }
+            
+            // Cria ou atualiza o elemento da moto
+            let motoElement = document.getElementById('moto-' + id);
+            
+            if (!motoElement) {
+                motoElement = document.createElement('div');
+                motoElement.id = 'moto-' + id;
+                motoElement.className = 'moto-item fade-in';
+                motoElement.style.backgroundColor = statusColor;
+                
+                // Adiciona à área apropriada
+                document.getElementById(areaId).appendChild(motoElement);
+            } else {
+                // Atualiza cor e move para área correta se necessário
+                motoElement.style.backgroundColor = statusColor;
+                const currentParent = motoElement.parentNode;
+                
+                if (currentParent.id !== areaId) {
+                    currentParent.removeChild(motoElement);
+                    document.getElementById(areaId).appendChild(motoElement);
+                    
+                    // Adiciona classe de animação
+                    motoElement.classList.add('fade-in');
+                    setTimeout(() => {
+                        motoElement.classList.remove('fade-in');
+                    }, 500);
+                }
+            }
+            
+            // Atualiza o conteúdo
+            motoElement.innerHTML = `
+                <strong>${modelo}</strong><br>
+                <small>ID: ${id.substring(0, 8)}</small><br>
+                <small>Status: ${status}</small>
+            `;
+        }
+        
+        // Atualizar gráficos
+        function updateCharts() {
+            // Atualizar gráfico de status
+            statusChart.data.datasets[0].data = [
+                stats.statusCounts['Disponível'] || 0,
+                stats.statusCounts['Em manutenção'] || 0,
+                stats.statusCounts['Reservada'] || 0,
+                stats.statusCounts['Não cadastrada'] || 0
+            ];
+            statusChart.update();
+            
+            // Atualizar gráfico de localização
+            locationChart.data.datasets[0].data = [
+                stats.locationCounts['Patio A - Entrada'] || 0,
+                stats.locationCounts['Patio B - Manutenção'] || 0,
+                stats.locationCounts['Patio C - Saída'] || 0
+            ];
+            locationChart.update();
+        }
+        
+        // Limpar tabela
+        function clearTable() {
+            document.getElementById('readings-table').innerHTML = '';
+        }
+        
+        // Gerenciar mudança no modo de simulação
+        function handleSimulationModeChange() {
+            const mode = document.getElementById('simulation-mode').value;
+            const speed = 11 - document.getElementById('simulation-speed').value; // Inverte para que maior valor = mais rápido
+            
+            // Limpar intervalo existente
+            if (autoSimInterval) {
+                clearInterval(autoSimInterval);
+                autoSimInterval = null;
+            }
+            
+            // Configurar novo modo
+            if (mode === 'auto') {
+                autoSimInterval = setInterval(simulateReading, speed * 1000);
+            } else if (mode === 'random') {
+                autoSimInterval = setInterval(() => {
+                    // Simula com probabilidades diferentes para cada moto
+                    const rand = Math.random();
+                    let index;
+                    
+                    if (rand < 0.4) {
+                        index = 0; // 40% chance para a primeira moto
+                    } else if (rand < 0.7) {
+                        index = 1; // 30% chance para a segunda moto
+                    } else if (rand < 0.9) {
+                        index = 2; // 20% chance para a terceira moto
+                    } else {
+                        index = 3; // 10% chance para a quarta moto
+                    }
+                    
+                    processReading(index);
+                }, speed * 1000);
+            }
+        }
+        
+        // Atualizar velocidade de simulação quando o slider muda
+        document.getElementById('simulation-speed').addEventListener('input', function() {
+            // Se estiver em modo automático, atualiza o intervalo
+            if (document.getElementById('simulation-mode').value !== 'manual') {
+                handleSimulationModeChange();
+            }
+        });
+    </script>
+</body>
+</html>
