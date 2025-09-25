@@ -309,7 +309,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="mb-4">
             <nav class="navbar navbar-expand-lg navbar-light bg-white rounded-3 shadow-sm p-3">
                 <div class="container-fluid">
@@ -347,7 +346,6 @@
             </nav>
         </header>
         
-        <!-- Seção: Dashboard -->
         <div id="section-dashboard">
         <div class="row mb-4">
             <div class="col-md-3 col-sm-6">
@@ -380,7 +378,7 @@
             </div>
         </div>
         
-        <!-- Main Content -->
+        
         <div class="row">
             <!-- Map Section -->
             <div class="col-lg-8 mb-4">
@@ -395,30 +393,30 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="patio-map" id="patio-map">
-                            <!-- Área A - Estacionamento -->
+                            
                             <div class="patio-area" style="top: 10px; left: 10px; width: 45%; height: 380px;">
                                 <div class="patio-area-title">Área A - Estacionamento</div>
                                 <div class="patio-area-content" id="area-a" style="height: 340px;"></div>
                             </div>
                             
-                            <!-- Área B - Manutenção -->
+                            
                             <div class="patio-area" style="top: 10px; right: 10px; width: 45%; height: 185px;">
                                 <div class="patio-area-title">Área B - Manutenção</div>
                                 <div class="patio-area-content" id="area-b" style="height: 145px;"></div>
                             </div>
                             
-                            <!-- Área C - Saída -->
+                            
                             <div class="patio-area" style="bottom: 10px; right: 10px; width: 45%; height: 185px;">
                                 <div class="patio-area-title">Área C - Saída</div>
                                 <div class="patio-area-content" id="area-c" style="height: 145px;"></div>
                             </div>
                             
-                            <!-- Entrada -->
+                            
                             <div class="patio-entrance" style="top: 145px; left: 45%; width: 10%; height: 40px; line-height: 24px;">
                                 <i class="bi bi-box-arrow-in-right"></i> Entrada
                             </div>
                             
-                            <!-- Saída -->
+                            
                             <div class="patio-exit" style="bottom: 145px; left: 45%; width: 10%; height: 40px; line-height: 24px;">
                                 <i class="bi bi-box-arrow-right"></i> Saída
                             </div>
@@ -427,7 +425,7 @@
                 </div>
             </div>
             
-            <!-- Charts Section -->
+            
             <div class="col-lg-4 mb-4">
                 <div class="card fade-in" style="animation-delay: 0.1s">
                     <div class="card-header">
@@ -446,7 +444,7 @@
         </div>
         </div>
 
-        <!-- Seção: Histórico -->
+        
         <div id="section-history" style="display:none">
             <div class="card fade-in">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -477,7 +475,7 @@
             </div>
         </div>
 
-        <!-- Seção: Relatórios -->
+        
         <div id="section-reports" style="display:none">
             <div class="row">
                 <div class="col-lg-6 mb-4">
@@ -499,7 +497,7 @@
             </div>
         </div>
 
-        <!-- Seção: Configurações -->
+        
         <div id="section-settings" style="display:none">
             <div class="card fade-in">
                 <div class="card-header"><i class="bi bi-gear"></i> Configurações</div>
@@ -544,7 +542,7 @@
             </div>
         </div>
         
-        <!-- Recent Readings Table -->
+        
         <div class="row">
             <div class="col-12">
                 <div class="card fade-in" style="animation-delay: 0.2s">
@@ -577,7 +575,7 @@
             </div>
         </div>
         
-        <!-- Simulation Controls -->
+
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card fade-in" style="animation-delay: 0.3s">
@@ -620,8 +618,7 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Footer -->
+
         <footer class="mt-4 text-center text-muted">
             <p>Sistema de Rastreamento RFID - Mottu &copy; 2025</p>
         </footer>
@@ -630,10 +627,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script>
-        // URL do seu novo backend
         const API_URL = 'http://localhost:5000/api/status';
 
-        // Referências aos gráficos
         let statusChart;
         let locationChart;
 
@@ -647,7 +642,6 @@
             fetchAndUpdateDashboard();
         });
 
-        // Inicializar gráficos (seu código original pode ser mantido aqui)
         function initCharts() {
             const statusCtx = document.getElementById('status-chart').getContext('2d');
             statusChart = new Chart(statusCtx, {
@@ -774,7 +768,6 @@
             });
         }
 
-        // Nova função principal para buscar e atualizar o dashboard
         async function fetchAndUpdateDashboard() {
             try {
                 const response = await fetch(API_URL);
@@ -791,7 +784,6 @@
                 
                 const motos = await response.json();
                 
-                // Limpa o mapa e a tabela
                 document.getElementById('area-a').innerHTML = '';
                 document.getElementById('area-b').innerHTML = '';
                 document.getElementById('area-c').innerHTML = '';
@@ -809,7 +801,6 @@
                 const latencies = [];
 
                 motos.forEach(motoData => {
-                    // Atualiza estatísticas
                     stats.statusCounts[motoData.status] = (stats.statusCounts[motoData.status] || 0) + 1;
                     stats.locationCounts[motoData.location] = (stats.locationCounts[motoData.location] || 0) + 1;
                     
@@ -897,7 +888,7 @@
             if (moto.location.includes('Manutenção')) areaId = 'area-b';
             else if (moto.location.includes('Saída')) areaId = 'area-c';
             
-            let statusColor = '#d63031'; // Vermelho (Bloqueada/Não Cadastrada)
+            let statusColor = '#d63031';
             if (moto.status === 'Disponível') statusColor = '#00b894';
             else if (moto.status === 'Em manutenção') statusColor = '#fdcb6e';
             else if (moto.status === 'Reservada') statusColor = '#a29bfe';
