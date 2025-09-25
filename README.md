@@ -56,8 +56,8 @@ O sistema segue uma arquitetura IoT moderna, com os seguintes componentes:
                                                                                   ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │                 │     │                 │     │                 │
-│  Frontend       │◀────│  API Backend    │◀────│  Banco de Dados │
-│  (Mapa do Pátio)│     │  (Node.js)      │     │                 │
+│  Frontend       │◀────│  API Backend    │◀────│  Registro       │
+│  (Mapa do Pátio)│     │  (Flask/Python) │     │  (JSON Lines)   │
 │                 │     │                 │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
@@ -71,35 +71,33 @@ O fluxo de dados ocorre da seguinte forma:
 
 ## Componentes
 
-### Hardware
+### Hardware/Dispositivos
 - **Etiquetas RFID**: Tags passivas para identificação das motos
-- **Leitores RFID**: Simulados por botões no projeto atual (Arduino UNO)
-- **Gateway IoT**: Representado pelo Arduino no ambiente de simulação
+- **Leitores/Simuladores WiFi**: ESP32/ESP8266 (ou Wokwi) enviando telemetria via MQTT
+- **Gateway IoT**: Incorporado no próprio dispositivo (publica MQTT diretamente)
 
 ### Software
-- **Simulador**: Código Arduino para simular leituras RFID
-- **Dashboard**: Interface web HTML/CSS/JavaScript para visualização de dados
+- **Backend (Flask/Python)**: Assina telemetria via MQTT, persiste histórico e expõe API REST
+- **Simulador IoT (ESP32/ESP8266)**: Publica leituras periódicas e recebe comandos MQTT
+- **Dashboard Web**: Interface HTML/CSS/JavaScript que consome a API `/api/status`
 
-## Simulação no Wokwi
+## Simulação/Execução dos Dispositivos IoT
 
-Para fins de demonstração e desenvolvimento, criamos uma versão simplificada no Wokwi:
+Você pode executar 3 simuladores ESP32/ESP8266 em paralelo (Wokwi ou físico). Use `rfid_simulado_simples.ino` como base e altere:
 
-### Versão Simplificada
-- Utiliza Arduino UNO com botões para simular leituras RFID
-- Exibe dados no monitor serial
-- Demonstra o conceito sem dependências externas
+- `MQTT_CLIENT_ID`: valor único por instância, ex.: `motoconnect-sim-01`, `-02`, `-03`
+- `reader_id`: diferencie cada dispositivo, ex.: `READER_001`, `READER_002`, `READER_003`
 
-#### Arquivos da Simulação
-- `rfid_simulado_simples.ino`: Código da versão simplificada para Arduino UNO
-- `Instruções para Simulação de Leitor RFID no Wokwi (Versão Simplificada) (1).md`: Documentação detalhada
+Isso permite cumprir o requisito de 3 dispositivos IoT simultâneos e comandos por tópico `motoconnect/commands/<tag_id>`.
 
 ## Dashboard
 
-O sistema inclui um dashboard web para visualização em tempo real:
+O sistema inclui um dashboard web para visualização quase em tempo real (polling a cada 3s):
 
 ### Dashboard Web
 - Interface web em HTML/CSS/JavaScript (`rfid_dashboard.html`)
 - Visualização responsiva para desktop e dispositivos móveis
+- Consome `GET /api/status` do backend Flask
 
 #### Funcionalidades do Dashboard
 - Mapa interativo do pátio com posição das motos
@@ -107,16 +105,24 @@ O sistema inclui um dashboard web para visualização em tempo real:
 - Gráficos estatísticos (status das motos, leituras por localização)
 - Alertas visuais para eventos importantes
 
-## Instalação e Configuração
+## Instalação e Configuração (Backend Flask)
 
-### Simulação no Wokwi
+1. Requisitos: Python 3.10+
+2. Dentro de `MotoConnect-IoT/`, crie e ative um ambiente virtual
+   - Windows PowerShell: `python -m venv .venv && .\.venv\Scripts\Activate.ps1`
+3. Instale dependências: `pip install -r requirements.txt`
+4. Execute o backend: `python app.py`
+5. Backend disponível em `http://localhost:5000`
 
-1. Acesse [Wokwi](https://wokwi.com/new/arduino-uno) e crie um novo projeto Arduino UNO
-2. Copie o código do arquivo `rfid_simulado_simples.ino`
-3. Configure o diagrama com 4 botões (pinos 2-5) e 1 LED (pino 13)
-4. Inicie a simulação e teste usando os botões ou o monitor serial
+### Executar o Dashboard
+1. Abra `rfid_dashboard.html` no navegador
+2. Garanta que `API_URL` aponta para `http://localhost:5000/api/status`
 
-Para detalhes completos de configuração, consulte o arquivo `Instruções para Simulação de Leitor RFID no Wokwi (Versão Simplificada) (1).md`.
+### Executar 3 simuladores (Wokwi)
+1. Acesse `https://wokwi.com/` e crie 3 projetos ESP32
+2. Cole o conteúdo de `rfid_simulado_simples.ino` em cada projeto
+3. Altere `MQTT_CLIENT_ID` e `reader_id` em cada um
+4. Inicie as simulações em paralelo; verifique leituras no dashboard
 
 ### Dashboard Web
 
@@ -125,15 +131,14 @@ Para detalhes completos de configuração, consulte o arquivo `Instruções para
 
 ## Uso
 
-### Simulação de Leituras RFID
-
-- Clique nos botões 1-4 para simular diferentes tags RFID
-- Ou digite números 1-4 no monitor serial e pressione Enter
-- Observe as informações da moto no monitor serial
+### Operação
+- Inicie o backend Flask
+- Inicie 3 simuladores IoT com IDs únicos
+- Abra o dashboard; verifique contadores, mapa e tabela atualizando
 
 ### Formato dos Dados
 
-Quando uma leitura é simulada, o seguinte formato JSON é gerado:
+Formato JSON publicado em `motoconnect/telemetry` e armazenado em `telemetry_log.json` (JSON Lines):
 
 ```json
 {
@@ -146,6 +151,27 @@ Quando uma leitura é simulada, o seguinte formato JSON é gerado:
   "timestamp": 12345
 }
 ```
+
+### Endpoints
+- `GET /api/status`: retorna última leitura por `tag_id` ordenada por `server_timestamp`
+- `POST /api/command` body: `{ "tag_id": "...", "command": "BLOCK|UNBLOCK" }` envia comando MQTT para `motoconnect/commands/<tag_id>`
+
+## Testes Funcionais (Casos de Uso)
+
+1. Moto desaparecida
+   - Pare um simulador por 2 ciclos; verifique no dashboard que a moto deixa de atualizar (campo horário estaciona)
+2. Moto no lugar errado
+   - Force a `location` incorreta por 1 ciclo; o mapa exibirá a moto em área divergente
+3. Bloqueio/Desbloqueio
+   - Envie `POST /api/command` com `BLOCK` e depois `UNBLOCK`; no terminal do simulador verá o efeito de atuador
+
+## Métricas de Performance (Evidências)
+
+- Latência média: diferença `server_timestamp - timestamp` observada no backend
+- Vazão: mensagens/min calculadas a partir do tamanho de `telemetry_log.json`
+- Disponibilidade: proporção de leituras recebidas por dispositivo (3 simuladores) em 5 minutos
+
+Inclua esses números no vídeo e no README conforme o seu ensaio.
 
 ## Contribuições
 
