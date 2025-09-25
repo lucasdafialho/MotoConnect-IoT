@@ -322,16 +322,16 @@
                     <div class="collapse navbar-collapse" id="navbarNav">
                         <ul class="navbar-nav me-auto">
                             <li class="nav-item">
-                                <a class="nav-link active" href="#">Dashboard</a>
+                                <a class="nav-link active" id="nav-dashboard" href="#">Dashboard</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#">Histórico</a>
+                                <a class="nav-link" id="nav-history" href="#">Histórico</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#">Relatórios</a>
+                                <a class="nav-link" id="nav-reports" href="#">Relatórios</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#">Configurações</a>
+                                <a class="nav-link" id="nav-settings" href="#">Configurações</a>
                             </li>
                         </ul>
                         <div class="d-flex align-items-center">
@@ -347,7 +347,8 @@
             </nav>
         </header>
         
-        <!-- Status Cards -->
+        <!-- Seção: Dashboard -->
+        <div id="section-dashboard">
         <div class="row mb-4">
             <div class="col-md-3 col-sm-6">
                 <div class="stats-card stats-primary fade-in">
@@ -440,6 +441,105 @@
                             <canvas id="location-chart"></canvas>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Seção: Histórico -->
+        <div id="section-history" style="display:none">
+            <div class="card fade-in">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-history"></i> Histórico de Leituras</span>
+                    <div>
+                        <button class="btn btn-sm btn-outline-light" id="export-history"><i class="bi bi-download"></i> Exportar</button>
+                        <button class="btn btn-sm btn-outline-light" id="clear-history"><i class="bi bi-trash"></i> Limpar</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Horário</th>
+                                    <th>Reader</th>
+                                    <th>Tag</th>
+                                    <th>Modelo</th>
+                                    <th>Placa</th>
+                                    <th>Localização</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção: Relatórios -->
+        <div id="section-reports" style="display:none">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card fade-in">
+                        <div class="card-header"><i class="bi bi-graph-up"></i> Leituras por Dispositivo (Reader)</div>
+                        <div class="card-body">
+                            <div class="chart-container"><canvas id="reader-chart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="card fade-in">
+                        <div class="card-header"><i class="bi bi-clipboard-data"></i> Latência (ms) — P50/P95</div>
+                        <div class="card-body">
+                            <div class="chart-container"><canvas id="latency-chart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção: Configurações -->
+        <div id="section-settings" style="display:none">
+            <div class="card fade-in">
+                <div class="card-header"><i class="bi bi-gear"></i> Configurações</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Intervalo de atualização (s)</label>
+                            <input type="number" min="1" id="cfg-interval" class="form-control" value="3">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">API URL</label>
+                            <input type="text" id="cfg-api" class="form-control" value="http://localhost:5000/api/status">
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary btn-action" id="save-settings"><i class="bi bi-save"></i> Salvar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in mt-3">
+                <div class="card-header"><i class="bi bi-joystick"></i> Enviar Comando</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Tag ID</label>
+                            <input type="text" id="cmd-tag" class="form-control" placeholder="04A5B9C2">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Comando</label>
+                            <select id="cmd-action" class="form-select">
+                                <option value="BLOCK">BLOCK</option>
+                                <option value="UNBLOCK">UNBLOCK</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-outline-primary btn-action" id="send-command"><i class="bi bi-send"></i> Enviar</button>
+                        </div>
+                    </div>
+                    <div class="mt-3" id="cmd-result"></div>
                 </div>
             </div>
         </div>
@@ -539,9 +639,12 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             initCharts();
-            // Chama a função de atualização a cada 3 segundos
-            setInterval(fetchAndUpdateDashboard, 3000);
-            fetchAndUpdateDashboard(); // Carga inicial
+            initNavigation();
+            initSettings();
+            initHistory();
+            initReports();
+            startPolling();
+            fetchAndUpdateDashboard();
         });
 
         // Inicializar gráficos (seu código original pode ser mantido aqui)
@@ -575,6 +678,102 @@
             });
         }
 
+        function startPolling() {
+            const savedInterval = parseInt(localStorage.getItem('mc_refresh_interval') || '3', 10);
+            const intervalMs = Math.max(1, savedInterval) * 1000;
+            if (window.__mc_interval) clearInterval(window.__mc_interval);
+            window.__mc_interval = setInterval(fetchAndUpdateDashboard, intervalMs);
+        }
+
+        function initNavigation() {
+            const sections = {
+                dashboard: document.getElementById('section-dashboard'),
+                history: document.getElementById('section-history'),
+                reports: document.getElementById('section-reports'),
+                settings: document.getElementById('section-settings')
+            };
+            const links = {
+                dashboard: document.getElementById('nav-dashboard'),
+                history: document.getElementById('nav-history'),
+                reports: document.getElementById('nav-reports'),
+                settings: document.getElementById('nav-settings')
+            };
+            function showSection(name) {
+                Object.values(sections).forEach(el => el.style.display = 'none');
+                Object.values(links).forEach(a => a.classList.remove('active'));
+                sections[name].style.display = '';
+                links[name].classList.add('active');
+            }
+            links.dashboard.addEventListener('click', () => showSection('dashboard'));
+            links.history.addEventListener('click', () => showSection('history'));
+            links.reports.addEventListener('click', () => showSection('reports'));
+            links.settings.addEventListener('click', () => showSection('settings'));
+            showSection('dashboard');
+        }
+
+        function initSettings() {
+            const apiInput = document.getElementById('cfg-api');
+            const intervalInput = document.getElementById('cfg-interval');
+            const savedApi = localStorage.getItem('mc_api_url');
+            const savedInterval = localStorage.getItem('mc_refresh_interval');
+            if (savedApi) apiInput.value = savedApi;
+            if (savedInterval) intervalInput.value = savedInterval;
+            document.getElementById('save-settings').addEventListener('click', () => {
+                localStorage.setItem('mc_api_url', apiInput.value.trim());
+                localStorage.setItem('mc_refresh_interval', String(Math.max(1, parseInt(intervalInput.value || '3', 10))));
+                startPolling();
+            });
+            document.getElementById('send-command').addEventListener('click', async () => {
+                const tag = document.getElementById('cmd-tag').value.trim();
+                const action = document.getElementById('cmd-action').value;
+                const result = document.getElementById('cmd-result');
+                if (!tag) { result.textContent = 'Informe um Tag ID.'; return; }
+                try {
+                    const res = await fetch((apiInput.value || API_URL).replace('/status','/command'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tag_id: tag, command: action })
+                    });
+                    const data = await res.json();
+                    result.textContent = data.message || 'OK';
+                } catch (e) {
+                    result.textContent = 'Falha ao enviar comando';
+                }
+            });
+        }
+
+        function initHistory() {
+            document.getElementById('clear-history').addEventListener('click', () => {
+                localStorage.removeItem('mc_history');
+                document.getElementById('history-table').innerHTML = '';
+            });
+            document.getElementById('export-history').addEventListener('click', () => {
+                const history = JSON.parse(localStorage.getItem('mc_history') || '[]');
+                const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'history.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function initReports() {
+            const rctx = document.getElementById('reader-chart').getContext('2d');
+            window.readerChart = new Chart(rctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Leituras', data: [], backgroundColor: '#6c5ce7' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+            const lctx = document.getElementById('latency-chart').getContext('2d');
+            window.latencyChart = new Chart(lctx, {
+                type: 'bar',
+                data: { labels: ['P50','P95'], datasets: [{ label: 'Latência (ms)', data: [0,0], backgroundColor: '#00b894' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
         // Nova função principal para buscar e atualizar o dashboard
         async function fetchAndUpdateDashboard() {
             try {
@@ -604,6 +803,11 @@
                     locationCounts: { "Patio A - Entrada": 0, "Patio B - Manutenção": 0, "Patio C - Saída": 0 }
                 };
 
+                const history = JSON.parse(localStorage.getItem('mc_history') || '[]');
+                const now = Date.now();
+                const perReader = {};
+                const latencies = [];
+
                 motos.forEach(motoData => {
                     // Atualiza estatísticas
                     stats.statusCounts[motoData.status] = (stats.statusCounts[motoData.status] || 0) + 1;
@@ -611,9 +815,30 @@
                     
                     addReadingToTable(motoData);
                     updateMap(motoData);
+
+                    history.push({
+                        time: motoData.server_timestamp,
+                        reader: motoData.reader_id,
+                        tag_id: motoData.tag_id,
+                        modelo: motoData.modelo,
+                        placa: motoData.placa,
+                        location: motoData.location,
+                        status: motoData.status
+                    });
+
+                    const reader = motoData.reader_id || 'N/A';
+                    perReader[reader] = (perReader[reader] || 0) + 1;
+
+                    const deviceTs = Number(motoData.timestamp || 0);
+                    if (deviceTs > 0) latencies.push(Math.max(0, now - deviceTs));
                 });
 
                 updateStatsAndCharts(stats);
+
+                while (history.length > 2000) history.shift();
+                localStorage.setItem('mc_history', JSON.stringify(history));
+                renderHistoryTable(history);
+                renderReports(perReader, latencies);
 
             } catch (error) {
                 console.error("Erro ao buscar dados:", error);
@@ -687,6 +912,46 @@
                 <small>Status: ${moto.status}</small>
             `;
             document.getElementById(areaId).appendChild(motoElement);
+        }
+
+        function renderHistoryTable(history) {
+            const tbody = document.getElementById('history-table');
+            tbody.innerHTML = '';
+            const last = history.slice(-200);
+            last.reverse().forEach(item => {
+                const tr = document.createElement('tr');
+                const timeString = new Date(item.time * 1000).toLocaleTimeString();
+                tr.innerHTML = `
+                    <td>${timeString}</td>
+                    <td>${item.reader}</td>
+                    <td>${item.tag_id}</td>
+                    <td>${item.modelo}</td>
+                    <td>${item.placa}</td>
+                    <td>${item.location}</td>
+                    <td>${item.status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function percentile(values, p) {
+            if (!values.length) return 0;
+            const sorted = [...values].sort((a,b) => a-b);
+            const idx = Math.ceil((p/100) * sorted.length) - 1;
+            return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
+        }
+
+        function renderReports(perReader, latencies) {
+            const labels = Object.keys(perReader);
+            const counts = labels.map(k => perReader[k]);
+            window.readerChart.data.labels = labels;
+            window.readerChart.data.datasets[0].data = counts;
+            window.readerChart.update();
+
+            const p50 = percentile(latencies, 50);
+            const p95 = percentile(latencies, 95);
+            window.latencyChart.data.datasets[0].data = [p50, p95];
+            window.latencyChart.update();
         }
     </script>
 </body>
