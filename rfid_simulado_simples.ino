@@ -1,9 +1,19 @@
-#define BOTAO_TAG1 2
-#define BOTAO_TAG2 3
-#define BOTAO_TAG3 4
-#define BOTAO_TAG4 5
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
 
-#define LED_LEITURA 13
+const char* WIFI_SSID = "Wokwi-GUEST";
+const char* WIFI_PASSWORD = "";
+
+const char* MQTT_BROKER = "broker.hivemq.com";
+const int MQTT_PORT = 1883;
+const char* MQTT_CLIENT_ID = "motoconnect-sim-12345";
+
+const char* MQTT_TOPIC_TELEMETRY = "motoconnect/telemetry";
+const char* MQTT_TOPIC_COMMAND = "motoconnect/commands/+";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 struct MotoInfo {
   String id;
@@ -11,147 +21,110 @@ struct MotoInfo {
   String placa;
   String status;
   String localizacao;
+  float bateria;
 };
 
 MotoInfo motosDB[] = {
-  {"04A5B9C2", "Honda CG 160", "ABC1234", "Disponível", "Patio A - Entrada"},
-  {"1A2B3C4D", "Yamaha Factor 150", "XYZ5678", "Em manutenção", "Patio B - Manutenção"},
-  {"AABB1122", "Honda Biz 125", "DEF9012", "Reservada", "Patio A - Entrada"},
-  {"55667788", "Suzuki Yes 125", "GHI3456", "Disponível", "Patio C - Saída"}
+  {"04A5B9C2", "Honda CG 160", "ABC1234", "Disponível", "Patio A - Entrada", 12.7},
+  {"1A2B3C4D", "Yamaha Factor 150", "XYZ5678", "Em manutenção", "Patio B - Manutenção", 12.2},
+  {"AABB1122", "Honda Biz 125", "DEF9012", "Disponível", "Patio A - Entrada", 12.5},
+  {"55667788", "Suzuki Yes 125", "GHI3456", "Disponível", "Patio C - Saída", 11.9}
 };
 
-unsigned long lastReadTime = 0;
-const long readInterval = 2000;
-String lastTagId = "";
+void setup_wifi() {
+  Serial.println("Conectando ao WiFi...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Conectado!");
+}
 
-String inputString = "";
-boolean stringComplete = false;
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Comando recebido no tópico: ");
+  Serial.println(topic);
+
+  StaticJsonDocument<128> doc;
+  deserializeJson(doc, payload, length);
+
+  const char* target_id = doc["tag_id"];
+  const char* command = doc["command"];
+
+  for (int i = 0; i < 4; i++) {
+    if (motosDB[i].id == target_id) {
+      if (strcmp(command, "BLOCK") == 0) {
+        motosDB[i].status = "Bloqueada";
+        Serial.print("ATUADOR: Moto ");
+        Serial.print(motosDB[i].modelo);
+        Serial.println(" foi bloqueada!");
+      } else if (strcmp(command, "UNBLOCK") == 0) {
+        motosDB[i].status = "Disponível";
+        Serial.print("ATUADOR: Moto ");
+        Serial.print(motosDB[i].modelo);
+        Serial.println(" foi desbloqueada!");
+      }
+      break;
+    }
+  }
+}
+
+void reconnect_mqtt() {
+  while (!client.connected()) {
+    Serial.print("Conectando ao Broker MQTT...");
+    if (client.connect(MQTT_CLIENT_ID)) {
+      Serial.println(" Conectado!");
+      client.subscribe(MQTT_TOPIC_COMMAND);
+      Serial.print("Inscrito no tópico de comandos: ");
+      Serial.println(MQTT_TOPIC_COMMAND);
+    } else {
+      Serial.print(" falhou, rc=");
+      Serial.print(client.state());
+      Serial.println(" tentando novamente em 5 segundos");
+      delay(5000);
+    }
+  }
+}
 
 void setup() {
-  Serial.begin(9600);
-  
-  pinMode(BOTAO_TAG1, INPUT_PULLUP);
-  pinMode(BOTAO_TAG2, INPUT_PULLUP);
-  pinMode(BOTAO_TAG3, INPUT_PULLUP);
-  pinMode(BOTAO_TAG4, INPUT_PULLUP);
-  
-  pinMode(LED_LEITURA, OUTPUT);
-  
-  Serial.println("=================================================");
-  Serial.println("  SIMULADOR DE LEITOR RFID - PROJETO MOTTU");
-  Serial.println("=================================================");
-  Serial.println("Pressione os botões 2-5 para simular leituras RFID");
-  Serial.println("Ou digite 1-4 no monitor serial e pressione Enter");
-  Serial.println("=================================================");
-  Serial.println("Motos cadastradas:");
-  
-  for (int i = 0; i < 4; i++) {
-    Serial.print(i+1);
-    Serial.print(". ID: ");
-    Serial.print(motosDB[i].id);
-    Serial.print(" | Modelo: ");
-    Serial.print(motosDB[i].modelo);
-    Serial.print(" | Placa: ");
-    Serial.print(motosDB[i].placa);
-    Serial.print(" | Status: ");
-    Serial.println(motosDB[i].status);
-  }
-  
-  Serial.println("=================================================");
-  Serial.println("Aguardando leituras...");
+  Serial.begin(115200);
+  setup_wifi();
+  client.setServer(MQTT_BROKER, MQTT_PORT);
+  client.setCallback(callback);
 }
 
 void loop() {
-  if (stringComplete) {
-    processarEntradaSerial();
-    inputString = "";
-    stringComplete = false;
+  if (!client.connected()) {
+    reconnect_mqtt();
   }
-  
-  verificarBotoes();
-  
-  while (Serial.available()) {
-    char inChar = (char)Serial.read();
-    if (inChar == '\n') {
-      stringComplete = true;
-    } else {
-      inputString += inChar;
-    }
-  }
-}
+  client.loop();
 
-void verificarBotoes() {
-  unsigned long currentMillis = millis();
-  
-  if (currentMillis - lastReadTime >= readInterval) {
-    if (digitalRead(BOTAO_TAG1) == LOW) {
-      processarLeitura(0);
-      lastReadTime = currentMillis;
-    }
-    else if (digitalRead(BOTAO_TAG2) == LOW) {
-      processarLeitura(1);
-      lastReadTime = currentMillis;
-    }
-    else if (digitalRead(BOTAO_TAG3) == LOW) {
-      processarLeitura(2);
-      lastReadTime = currentMillis;
-    }
-    else if (digitalRead(BOTAO_TAG4) == LOW) {
-      processarLeitura(3);
-      lastReadTime = currentMillis;
-    }
-  }
-}
+  int motoIndex = random(0, 4);
+  MotoInfo moto = motosDB[motoIndex];
 
-void processarEntradaSerial() {
-  int tagNum = inputString.toInt();
-  
-  if (tagNum >= 1 && tagNum <= 4) {
-    processarLeitura(tagNum - 1);
-  } else {
-    Serial.println("Entrada inválida. Digite um número de 1 a 4.");
-  }
-}
+  moto.bateria -= random(0, 10) / 100.0;
+  if (moto.bateria < 11.5) moto.bateria = 12.8;
+  motosDB[motoIndex].bateria = moto.bateria;
 
-void processarLeitura(int index) {
-  digitalWrite(LED_LEITURA, HIGH);
-  
-  MotoInfo moto = motosDB[index];
-  
-  Serial.println("\n=================================================");
-  Serial.println("LEITURA RFID DETECTADA!");
-  Serial.println("=================================================");
-  Serial.print("ID da Tag: ");
-  Serial.println(moto.id);
-  Serial.print("Modelo: ");
-  Serial.println(moto.modelo);
-  Serial.print("Placa: ");
-  Serial.println(moto.placa);
-  Serial.print("Status: ");
-  Serial.println(moto.status);
-  Serial.print("Localização: ");
-  Serial.println(moto.localizacao);
-  Serial.println("=================================================");
-  
-  Serial.println("Dados enviados para o dashboard");
-  Serial.println("=================================================");
-  
-  Serial.println("Formato JSON dos dados:");
-  Serial.print("{\"tag_id\":\"");
-  Serial.print(moto.id);
-  Serial.print("\",\"modelo\":\"");
-  Serial.print(moto.modelo);
-  Serial.print("\",\"placa\":\"");
-  Serial.print(moto.placa);
-  Serial.print("\",\"status\":\"");
-  Serial.print(moto.status);
-  Serial.print("\",\"location\":\"");
-  Serial.print(moto.localizacao);
-  Serial.print("\",\"reader_id\":\"READER_001\",\"timestamp\":");
-  Serial.print(millis());
-  Serial.println("}");
-  Serial.println("=================================================");
-  
-  delay(200);
-  digitalWrite(LED_LEITURA, LOW);
+  StaticJsonDocument<256> doc;
+  doc["tag_id"] = moto.id;
+  doc["modelo"] = moto.modelo;
+  doc["placa"] = moto.placa;
+  doc["status"] = moto.status;
+  doc["location"] = moto.localizacao;
+  doc["bateria"] = String(moto.bateria, 2);
+  doc["reader_id"] = "READER_001";
+  doc["timestamp"] = millis();
+
+  char json_buffer[256];
+  serializeJson(doc, json_buffer);
+
+  client.publish(MQTT_TOPIC_TELEMETRY, json_buffer);
+
+  Serial.println("\n==================================");
+  Serial.println("LEITURA SIMULADA E ENVIADA VIA MQTT:");
+  Serial.println(json_buffer);
+  Serial.println("==================================");
+
+  delay(7000);
 }
