@@ -90,20 +90,55 @@ Você pode executar 3 simuladores ESP32/ESP8266 em paralelo (Wokwi ou físico). 
 
 Isso permite cumprir o requisito de 3 dispositivos IoT simultâneos e comandos por tópico `motoconnect/commands/<tag_id>`.
 
+### Simulador IoT (`rfid_simulado_simples.ino`)
+- Conexão Wi-Fi padrão `Wokwi-GUEST` (sem senha) e broker MQTT público `broker.hivemq.com`
+- Publicação periódica em `motoconnect/telemetry` com uma moto aleatória da base embarcada
+- Geração de telemetria com rotação de status, localização, placa, modelo e bateria (restabelecida automaticamente quando cai abaixo de 11.5V)
+- Inclusão de `timestamp` em milissegundos para cálculo de latência no dashboard
+- Assinatura de `motoconnect/commands/+` para receber `BLOCK` ou `UNBLOCK` e atualizar o status local imediatamente
+- Estrutura de dados simples (`MotoInfo`) que pode ser estendida com novos campos conforme necessário
+
+#### Sensores simulados 
+- Sensor 1: `MQTT_CLIENT_ID = motoconnect-sim-01`, `reader_id = READER_001`
+- Sensor 2: `MQTT_CLIENT_ID = motoconnect-sim-02`, `reader_id = READER_002`
+- Sensor 3: `MQTT_CLIENT_ID = motoconnect-sim-03`, `reader_id = READER_003`
+
+Os três sensores funcionam em paralelo para cobrir as áreas A, B e C do pátio, permitindo validar a escalabilidade mínima exigida pelo cenário do projeto.
+
+#### Boas práticas
+- Utilize brokers autenticados em produção e proteja credenciais fora do firmware
+- Troque `MQTT_TOPIC_TELEMETRY` e `MQTT_TOPIC_COMMAND` em ambientes multi-equipe para evitar colisões
+- Ajuste `delay()` e limites de telemetria para representar cenários reais sem sobrecarregar o backend
+
 ## Dashboard
 
-O sistema inclui um dashboard web para visualização quase em tempo real (polling a cada 3s):
+O dashboard web fornece acompanhamento quase em tempo real com pesquisa automática (intervalo padrão de 3 segundos). Ele foi atualizado para refletir a nova organização visual e os recursos ampliados disponíveis em `rfid_dashboard.html`.
 
-### Dashboard Web
-- Interface web em HTML/CSS/JavaScript (`rfid_dashboard.html`)
-- Visualização responsiva para desktop e dispositivos móveis
-- Consome `GET /api/status` do backend Flask
+### Tecnologias
+- HTML, CSS e JavaScript sem dependência de bundlers
+- Bootstrap 5.3 (CDN) para componentes responsivos
+- Bootstrap Icons para ícones vetoriais
+- Chart.js 3.7 para gráficos dinâmicos
 
-#### Funcionalidades do Dashboard
-- Mapa interativo do pátio com posição das motos
-- Tabela de histórico de leituras
-- Gráficos estatísticos (status das motos, leituras por localização)
-- Alertas visuais para eventos importantes
+### Estrutura da Interface
+- **Barra de navegação** com seções `Dashboard`, `Histórico`, `Relatórios` e `Configurações`
+- **Indicadores de status** com totens para leituras totais, motos disponíveis, manutenção e tags desconhecidas
+- **Mapa do pátio** interativo com filtros de visualização e agrupamento por áreas (A, B e C)
+- **Tabelas dinâmicas** para últimas leituras e para o histórico persistido em `localStorage`
+- **Relatórios** com gráficos de leituras por reader e percentis de latência (P50/P95)
+- **Configurações** com personalização do intervalo de atualização e URL da API, além do envio de comandos MQTT
+- **Controles de simulação** integrados para facilitar demonstrações e alternância entre modos manual, automático e aleatório
+
+### Fluxo de Dados
+1. O frontend consulta `GET /api/status` no endpoint definido em `Configurações`
+2. Os dados recebidos alimentam o mapa, os gráficos e as tabelas
+3. O histórico é enriquecido com cada leitura e persistido em `localStorage` (até 2000 registros)
+4. Os relatórios são recalculados com base nas leituras vigentes, exibindo estatísticas por reader e latência
+
+### Envio de Comandos
+- A seção `Configurações` inclui um formulário para publicar comandos via `POST /api/command`
+- O resultado do envio é exibido imediatamente, permitindo validar bloqueio ou desbloqueio de motos
+- Os comandos fluem para o simulador (ou dispositivo físico) via tópico `motoconnect/commands/<tag_id>`
 
 ## Instalação e Configuração (Backend Flask)
 
