@@ -1,9 +1,10 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import paho.mqtt.client as mqtt
 import json
 import threading
 import time
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -65,6 +66,23 @@ def send_command():
         mqtt_client.publish(command_topic, command_payload)
         print(f"Comando '{command}' enviado para a moto '{tag_id}' no tópico '{command_topic}'")
         return jsonify({"status": "success", "message": f"Comando {command} enviado para {tag_id}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/dashboard')
+@app.route('/')
+def dashboard():
+    dashboard_path = os.path.join(os.path.dirname(__file__), 'rfid_dashboard.html')
+    return send_file(dashboard_path)
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                history = [json.loads(line) for line in f.readlines()]
+            return jsonify(history[-100:])
+        return jsonify([])
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

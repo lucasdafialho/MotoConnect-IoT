@@ -1,0 +1,9 @@
+[wokwi]
+version = 1
+elf = ""
+firmware = ""
+
+[[net.forward]]
+from = "localhost:5000"
+to = "target:5000"
+

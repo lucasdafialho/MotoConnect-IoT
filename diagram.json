@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "author": "MotoConnect IoT Team",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp32",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led-green",
+      "top": -50,
+      "left": 150,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led-yellow",
+      "top": -50,
+      "left": 200,
+      "attrs": { "color": "yellow" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led-red",
+      "top": -50,
+      "left": 250,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 20,
+      "left": 150,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 20,
+      "left": 200,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 20,
+      "left": 250,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": 100,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht22",
+      "top": -100,
+      "left": -50,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "esp32:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp32:RX0", "$serialMonitor:TX", "", [] ],
+    [ "esp32:GND.1", "led-green:C", "black", [ "v0" ] ],
+    [ "esp32:GND.1", "led-yellow:C", "black", [ "v0" ] ],
+    [ "esp32:GND.1", "led-red:C", "black", [ "v0" ] ],
+    [ "esp32:D23", "r1:1", "green", [ "h0" ] ],
+    [ "r1:2", "led-green:A", "green", [ "v0" ] ],
+    [ "esp32:D22", "r2:1", "yellow", [ "h0" ] ],
+    [ "r2:2", "led-yellow:A", "yellow", [ "v0" ] ],
+    [ "esp32:D21", "r3:1", "red", [ "h0" ] ],
+    [ "r3:2", "led-red:A", "red", [ "v0" ] ],
+    [ "esp32:D19", "buzzer:1", "purple", [ "h0" ] ],
+    [ "esp32:GND.2", "buzzer:2", "black", [ "v0" ] ],
+    [ "esp32:D4", "dht22:SDA", "blue", [ "h0" ] ],
+    [ "esp32:3V3", "dht22:VCC", "red", [ "h0" ] ],
+    [ "esp32:GND.1", "dht22:GND", "black", [ "h0" ] ]
+  ],
+  "dependencies": {}
+}
+
