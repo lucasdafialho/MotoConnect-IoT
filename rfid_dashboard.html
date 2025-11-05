@@ -76,7 +76,56 @@
             background-color: var(--danger-color);
             color: white;
         }
-        
+
+        .alert-item {
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .alert-warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .alert-danger {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .alert-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-right: 12px;
+        }
+
+        .alert-warning .alert-icon {
+            background-color: rgba(253, 203, 110, 0.2);
+            color: var(--warning-color);
+        }
+
+        .alert-danger .alert-icon {
+            background-color: rgba(214, 48, 49, 0.15);
+            color: var(--danger-color);
+        }
+
+        .has-alert {
+            position: relative;
+            border: 2px solid rgba(214, 48, 49, 0.7);
+            animation: alertPulse 1.5s infinite;
+        }
+
+        @keyframes alertPulse {
+            0% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(214, 48, 49, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0); }
+        }
+
         .patio-map {
             background-color: #f0f0f0;
             border-radius: 10px;
@@ -371,14 +420,14 @@
             </div>
             <div class="col-md-3 col-sm-6">
                 <div class="stats-card stats-danger fade-in" style="animation-delay: 0.3s">
-                    <i class="bi bi-exclamation-triangle fs-1"></i>
-                    <h3 id="unknown-count">0</h3>
-                    <p>Não Cadastradas</p>
+                    <i class="bi bi-bell-fill fs-1"></i>
+                    <h3 id="alerts-count">0</h3>
+                    <p>Alertas Ativos</p>
                 </div>
             </div>
         </div>
-        
-        
+
+
         <div class="row">
             <!-- Map Section -->
             <div class="col-lg-8 mb-4">
@@ -427,6 +476,17 @@
             
             
             <div class="col-lg-4 mb-4">
+                <div class="card fade-in mb-4" style="animation-delay: 0.05s">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-bell"></i> Alertas em Tempo Real</span>
+                        <span class="badge bg-light text-dark" id="alert-summary">0 ativos</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="alerts-list">
+                            <p class="text-muted mb-0">Nenhum alerta ativo no momento.</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="card fade-in" style="animation-delay: 0.1s">
                     <div class="card-header">
                         <i class="bi bi-pie-chart"></i> Estatísticas
@@ -638,6 +698,7 @@
             initSettings();
             initHistory();
             initReports();
+            renderAlerts([]);
             startPolling();
             fetchAndUpdateDashboard();
         });
@@ -670,6 +731,14 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, title: { display: true, text: 'Leituras por Localização' } } }
             });
+        }
+
+        function getApiUrl() {
+            const saved = localStorage.getItem('mc_api_url');
+            if (saved && saved.trim()) {
+                return saved.trim();
+            }
+            return API_URL;
         }
 
         function startPolling() {
@@ -710,12 +779,13 @@
             const intervalInput = document.getElementById('cfg-interval');
             const savedApi = localStorage.getItem('mc_api_url');
             const savedInterval = localStorage.getItem('mc_refresh_interval');
-            if (savedApi) apiInput.value = savedApi;
+            apiInput.value = savedApi ? savedApi : API_URL;
             if (savedInterval) intervalInput.value = savedInterval;
             document.getElementById('save-settings').addEventListener('click', () => {
                 localStorage.setItem('mc_api_url', apiInput.value.trim());
                 localStorage.setItem('mc_refresh_interval', String(Math.max(1, parseInt(intervalInput.value || '3', 10))));
                 startPolling();
+                fetchAndUpdateDashboard();
             });
             document.getElementById('send-command').addEventListener('click', async () => {
                 const tag = document.getElementById('cmd-tag').value.trim();
@@ -723,7 +793,7 @@
                 const result = document.getElementById('cmd-result');
                 if (!tag) { result.textContent = 'Informe um Tag ID.'; return; }
                 try {
-                    const res = await fetch((apiInput.value || API_URL).replace('/status','/command'), {
+                    const res = await fetch(getApiUrl().replace('/status','/command'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tag_id: tag, command: action })
@@ -770,7 +840,7 @@
 
         async function fetchAndUpdateDashboard() {
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(getApiUrl());
                 const statusElement = document.getElementById('connection-status');
                 
                 if (!response.ok) {
@@ -799,13 +869,30 @@
                 const now = Date.now();
                 const perReader = {};
                 const latencies = [];
+                const activeAlerts = [];
 
                 motos.forEach(motoData => {
-                    stats.statusCounts[motoData.status] = (stats.statusCounts[motoData.status] || 0) + 1;
-                    stats.locationCounts[motoData.location] = (stats.locationCounts[motoData.location] || 0) + 1;
-                    
+                    const statusKey = motoData.status || 'Desconhecido';
+                    const locationKey = motoData.location || 'Patio A - Entrada';
+                    stats.statusCounts[statusKey] = (stats.statusCounts[statusKey] || 0) + 1;
+                    stats.locationCounts[locationKey] = (stats.locationCounts[locationKey] || 0) + 1;
+
                     addReadingToTable(motoData);
                     updateMap(motoData);
+
+                    const alerts = Array.isArray(motoData.alerts) ? motoData.alerts : [];
+                    if (alerts.length) {
+                        activeAlerts.push({
+                            tag_id: motoData.tag_id,
+                            modelo: motoData.modelo,
+                            status: motoData.status,
+                            location: motoData.location,
+                            alert_level: motoData.alert_level || 'warning',
+                            alerts,
+                            server_timestamp: motoData.server_timestamp,
+                            server_timestamp_iso: motoData.server_timestamp_iso
+                        });
+                    }
 
                     history.push({
                         time: motoData.server_timestamp,
@@ -820,9 +907,15 @@
                     const reader = motoData.reader_id || 'N/A';
                     perReader[reader] = (perReader[reader] || 0) + 1;
 
-                    const deviceTs = Number(motoData.timestamp || 0);
-                    if (deviceTs > 0) latencies.push(Math.max(0, now - deviceTs));
+                    const serverTsMs = Number(motoData.server_timestamp || 0) * 1000;
+                    if (serverTsMs > 0) latencies.push(Math.max(0, now - serverTsMs));
                 });
+
+                const alertsCountElement = document.getElementById('alerts-count');
+                if (alertsCountElement) {
+                    alertsCountElement.textContent = activeAlerts.length;
+                }
+                renderAlerts(activeAlerts);
 
                 updateStatsAndCharts(stats);
 
@@ -870,12 +963,13 @@
             else if (moto.status === 'Reservada') statusClass = 'status-reservada';
             else if (moto.status === 'Bloqueada') statusClass = 'status-danger';
 
-            const timeString = new Date(moto.server_timestamp * 1000).toLocaleTimeString();
-            
+            const timeValue = Number(moto.server_timestamp || Date.now() / 1000);
+            const timeString = new Date(timeValue * 1000).toLocaleTimeString();
+
             row.innerHTML = `
                 <td>${timeString}</td>
                 <td>${moto.tag_id}</td>
-                <td>${moto.modelo}</td>
+                <td>${moto.modelo || '-'}</td>
                 <td>${moto.placa}</td>
                 <td>${moto.location}</td>
                 <td><span class="status-badge ${statusClass}">${moto.status}</span></td>
@@ -884,9 +978,10 @@
         }
 
         function updateMap(moto) {
+            const location = moto.location || '';
             let areaId = 'area-a';
-            if (moto.location.includes('Manutenção')) areaId = 'area-b';
-            else if (moto.location.includes('Saída')) areaId = 'area-c';
+            if (location.includes('Manutenção')) areaId = 'area-b';
+            else if (location.includes('Saída')) areaId = 'area-c';
             
             let statusColor = '#d63031';
             if (moto.status === 'Disponível') statusColor = '#00b894';
@@ -896,12 +991,17 @@
             let motoElement = document.createElement('div');
             motoElement.className = 'moto-item fade-in';
             motoElement.style.backgroundColor = statusColor;
-            
+
             motoElement.innerHTML = `
-                <strong>${moto.modelo}</strong><br>
+                <strong>${moto.modelo || moto.tag_id}</strong><br>
                 <small>Bateria: ${moto.bateria}V</small><br>
                 <small>Status: ${moto.status}</small>
             `;
+
+            if (Array.isArray(moto.alerts) && moto.alerts.length) {
+                motoElement.classList.add('has-alert');
+                motoElement.title = moto.alerts.join(' | ');
+            }
             document.getElementById(areaId).appendChild(motoElement);
         }
 
@@ -911,15 +1011,16 @@
             const last = history.slice(-200);
             last.reverse().forEach(item => {
                 const tr = document.createElement('tr');
-                const timeString = new Date(item.time * 1000).toLocaleTimeString();
+                const timeValue = Number(item.time || Date.now() / 1000);
+                const timeString = new Date(timeValue * 1000).toLocaleTimeString();
                 tr.innerHTML = `
                     <td>${timeString}</td>
-                    <td>${item.reader}</td>
+                    <td>${item.reader || '-'}</td>
                     <td>${item.tag_id}</td>
-                    <td>${item.modelo}</td>
-                    <td>${item.placa}</td>
-                    <td>${item.location}</td>
-                    <td>${item.status}</td>
+                    <td>${item.modelo || '-'}</td>
+                    <td>${item.placa || '-'}</td>
+                    <td>${item.location || '-'}</td>
+                    <td>${item.status || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -943,6 +1044,44 @@
             const p95 = percentile(latencies, 95);
             window.latencyChart.data.datasets[0].data = [p50, p95];
             window.latencyChart.update();
+        }
+
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alerts-list');
+            const summary = document.getElementById('alert-summary');
+            if (!container || !summary) return;
+
+            summary.textContent = `${alerts.length} ativo(s)`;
+            container.innerHTML = '';
+
+            if (!alerts.length) {
+                container.innerHTML = '<p class="text-muted mb-0">Nenhum alerta ativo no momento.</p>';
+                return;
+            }
+
+            alerts
+                .sort((a, b) => {
+                    const levelWeight = level => (level === 'danger' ? 2 : level === 'warning' ? 1 : 0);
+                    return levelWeight(b.alert_level) - levelWeight(a.alert_level);
+                })
+                .forEach(alert => {
+                    const levelClass = alert.alert_level === 'danger' ? 'alert-danger' : 'alert-warning';
+                    const icon = alert.alert_level === 'danger' ? 'bi-exclamation-octagon' : 'bi-exclamation-circle';
+                    const lastSeen = alert.server_timestamp ? new Date(alert.server_timestamp * 1000).toLocaleTimeString() : '';
+
+                    const item = document.createElement('div');
+                    item.className = `alert-item ${levelClass} fade-in`;
+                    item.innerHTML = `
+                        <div class="d-flex align-items-start">
+                            <div class="alert-icon"><i class="bi ${icon}"></i></div>
+                            <div>
+                                <strong>${alert.modelo || alert.tag_id}</strong>
+                                <p class="mb-1">${alert.alerts.join('<br>')}</p>
+                                <small class="text-muted">Status: ${alert.status} • ${alert.location || 'Localização desconhecida'}${lastSeen ? ' • ' + lastSeen : ''}</small>
+                            </div>
+                        </div>`;
+                    container.appendChild(item);
+                });
         }
     </script>
 </body>
