@@ -2,21 +2,19 @@
 
 ## Arquitetura do Sistema
 
-```
-┌─────────────────────┐      MQTT      ┌─────────────────────┐
-│                     │  broker.hivemq  │                     │
-│  Dispositivos IoT   │ ──────────────> │  Backend Flask      │
-│  (Wokwi/ESP32)      │                 │  (app.py)           │
-│                     │ <────────────── │                     │
-└─────────────────────┘   Comandos      └──────────┬──────────┘
-                                                    │ HTTP/REST
-                                                    │
-                                            ┌───────▼──────────┐
-                                            │                  │
-                                            │  Dashboard HTML  │
-                                            │  (Browser)       │
-                                            │                  │
-                                            └──────────────────┘
+```mermaid
+graph LR
+    subgraph IoT
+        A[Leitores RFID / ESP32]
+        B[Sensores (RFID, Bateria, DHT22)]
+    end
+
+    A -->|MQTT JSON| C((Broker HiveMQ))
+    C --> D[Backend Flask (app.py)]
+    D -->|Persistência| E[(telemetry.db - SQLite)]
+    D -->|Log| F[(telemetry_log.json)]
+    D -->|REST /api/status| G[Dashboard HTML]
+    D -->|REST /api/summary| H[Apps / Integrações]
 ```
 
 ## Componentes Implementados
@@ -45,9 +43,14 @@
 - Histórico de leituras
 
 ### 4. Persistência de Dados ✅
-- Arquivo JSON: `telemetry_log.json`
-- Histórico completo de todas as leituras
+- Banco de dados SQLite: `telemetry.db` (gerado automaticamente)
+- Arquivo JSON de auditoria: `telemetry_log.json`
 - LocalStorage no navegador para histórico local
+
+### 5. APIs, Alertas e Integrações ✅
+- Endpoints REST: `/api/status`, `/api/summary`, `/api/history`, `/api/motos/<tag_id>`, `/api/command`
+- Painel de alertas em tempo real (bateria baixa, temperatura crítica, bloqueio ativo, localização incorreta)
+- Documentação complementar em `docs/ARQUITETURA_INTEGRACAO.md`
 
 ## Pré-requisitos
 
@@ -79,6 +82,8 @@ Aguarde a mensagem:
 Conectado ao Broker MQTT com resultado: 0
  * Running on http://0.0.0.0:5000
 ```
+
+> O script informa as URLs úteis: `/api/status`, `/api/summary`, `/api/history?limit=200` e a criação do banco `telemetry.db`.
 
 #### 2. Simular Dispositivos IoT no Wokwi
 
@@ -160,6 +165,13 @@ curl http://localhost:5000/api/status
 
 Deve retornar JSON com array de motos.
 
+### Resumo / Integrações
+```bash
+curl http://localhost:5000/api/summary | jq
+```
+
+Confirme contagem de motos, alertas ativos e último update — esses dados alimentam apps mobile e serviços Java/.NET.
+
 ### MQTT
 No terminal do backend, você verá:
 ```
@@ -171,6 +183,14 @@ Telemetria recebida de 04A5B9C2: {...}
 - Estatísticas atualizando em tempo real
 - Tabela de leituras populando
 - Mapa do pátio mostrando motos nas áreas
+- Painel "Alertas em Tempo Real" exibindo eventos críticos
+
+### Banco de Dados
+```bash
+sqlite3 telemetry.db "SELECT tag_id, status, round(bateria,2) AS bateria, alert_level FROM telemetry ORDER BY server_timestamp DESC LIMIT 5;"
+```
+
+Garante que as leituras estejam sendo persistidas para auditoria e consumo por BI.
 
 ## Estrutura de Dados
 
@@ -186,7 +206,11 @@ Telemetria recebida de 04A5B9C2: {...}
   "temperatura": "25.3",
   "umidade": "60.2",
   "reader_id": "READER_001",
-  "timestamp": 123456789
+  "timestamp": 123456789,
+  "alerts": ["Bateria baixa"],
+  "alert_level": "warning",
+  "server_timestamp": 1715203200.123,
+  "server_timestamp_iso": "2025-05-08T14:00:00Z"
 }
 ```
 
@@ -232,9 +256,9 @@ Telemetria recebida de 04A5B9C2: {...}
 - ~25-30 mensagens/minuto no total
 
 ### Persistência
-- Todas as leituras salvas em `telemetry_log.json`
-- Histórico ilimitado (apenas disco)
-- Dashboard mantém últimas 2000 leituras em memória
+- Todas as leituras gravadas em `telemetry.db` (SQLite) e `telemetry_log.json`
+- Histórico ilimitado (limitado apenas por armazenamento)
+- Dashboard mantém últimas 2000 leituras em memória/localStorage
 
 ## Demonstração em Vídeo
 

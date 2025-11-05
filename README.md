@@ -8,11 +8,15 @@
 - [Desafio](#desafio)
 - [Solução Proposta](#solução-proposta)
 - [Arquitetura](#arquitetura)
+- [Fluxo de Dados Ponta a Ponta](#fluxo-de-dados-ponta-a-ponta)
 - [Componentes](#componentes)
 - [Simulação no Wokwi](#simulação-no-wokwi)
 - [Dashboard](#dashboard)
+- [APIs e Integrações Multidisciplinares](#apis-e-integrações-multidisciplinares)
 - [Instalação e Configuração](#instalação-e-configuração)
 - [Uso](#uso)
+- [Entrega Final e Checklist do 3º Sprint](#entrega-final-e-checklist-do-3º-sprint)
+- [Documentação Complementar](#documentação-complementar)
 - [Contribuições](#contribuições)
 - [Licença](#licença)
 
@@ -44,30 +48,24 @@ Nossa solução utiliza etiquetas RFID fixadas nas motos e leitores RFID estrate
 
 O sistema segue uma arquitetura IoT moderna, com os seguintes componentes:
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │     │                 │
-│  Etiquetas RFID │────▶│  Leitores RFID  │────▶│  Gateway IoT    │────▶│  Cloud Platform │
-│  (nas motos)    │     │  (nos pátios)   │     │  (Edge Device)  │     │                 │
-│                 │     │                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                                                  │
-                                                                                  │
-                                                                                  ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  Frontend       │◀────│  API Backend    │◀────│  Registro       │
-│  (Mapa do Pátio)│     │  (Flask/Python) │     │  (JSON Lines)   │
-│                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+```mermaid
+graph TD
+    A[Etiquetas RFID nas motos] --> B[Leitores RFID / ESP32]
+    B -->|MQTT JSON| C((Broker HiveMQ))
+    C --> D[Backend Flask]
+    D -->|Persistência| E[(telemetry.db - SQLite)]
+    D -->|Logs| F[(telemetry_log.json)]
+    D -->|REST /api/*| G[Dashboard Web]
+    D -->|REST /api/summary| H[Apps Mobile & APIs Java/.NET]
 ```
 
-O fluxo de dados ocorre da seguinte forma:
-1. Etiquetas RFID nas motos são lidas pelos leitores RFID
-2. Os leitores enviam os dados para o Gateway IoT
-3. O Gateway processa e envia os dados para a plataforma Cloud
-4. Os dados são processados, armazenados e disponibilizados via API
-5. O dashboard frontend exibe a localização das motos em tempo real
+## Fluxo de Dados Ponta a Ponta
+
+1. Etiquetas RFID nas motos são lidas pelos leitores ESP32 posicionados no pátio.
+2. Cada leitura agrega sensores (bateria, temperatura, umidade) e é publicada via MQTT (`motoconnect/telemetry`).
+3. O backend Flask assina o tópico, calcula alertas em tempo real, persiste a telemetria em `telemetry.db` (SQLite) e registra auditoria em `telemetry_log.json`.
+4. As APIs REST (`/api/status`, `/api/summary`, `/api/history`, `/api/motos/<tag_id>`) disponibilizam os dados para o dashboard, aplicativos mobile e integrações Java/.NET.
+5. O dashboard web apresenta mapa do pátio, estado de cada moto, gráficos, histórico e painel de alertas com atualização automática.
 
 ## Componentes
 
@@ -144,8 +142,9 @@ O dashboard web fornece acompanhamento quase em tempo real com pesquisa automát
 
 ### Estrutura da Interface
 - **Barra de navegação** com seções `Dashboard`, `Histórico`, `Relatórios` e `Configurações`
-- **Indicadores de status** com totens para leituras totais, motos disponíveis, manutenção e tags desconhecidas
+- **Indicadores de status** com totens para leituras totais, motos disponíveis, manutenção e alertas ativos
 - **Mapa do pátio** interativo com filtros de visualização e agrupamento por áreas (A, B e C)
+- **Painel de alertas em tempo real** destacando bateria baixa, temperatura alta, bloqueios e motos fora da área
 - **Tabelas dinâmicas** para últimas leituras e para o histórico persistido em `localStorage`
 - **Relatórios** com gráficos de leituras por reader e percentis de latência (P50/P95)
 - **Configurações** com personalização do intervalo de atualização e URL da API, além do envio de comandos MQTT
@@ -161,6 +160,26 @@ O dashboard web fornece acompanhamento quase em tempo real com pesquisa automát
 - A seção `Configurações` inclui um formulário para publicar comandos via `POST /api/command`
 - O resultado do envio é exibido imediatamente, permitindo validar bloqueio ou desbloqueio de motos
 - Os comandos fluem para o simulador (ou dispositivo físico) via tópico `motoconnect/commands/<tag_id>`
+
+## APIs e Integrações Multidisciplinares
+
+| Endpoint | Método | Descrição | Principais consumidores |
+|----------|--------|-----------|--------------------------|
+| `/api/status` | GET | Lista as últimas leituras de cada moto em ordem cronológica. | Dashboard web, aplicativo mobile |
+| `/api/summary` | GET | Retorna contagem por status, alertas ativos e timestamp da última atualização. | Mobile, painéis externos, chatbot |
+| `/api/history?limit=200` | GET | Consulta o histórico persistido em `telemetry.db` (SQLite) para BI e auditoria. | Data analytics, ETL, relatórios |
+| `/api/motos/<tag_id>` | GET | Busca a última telemetria de uma moto específica por Tag ID. | Aplicativos de suporte, manutenção |
+| `/api/command` | POST | Envia comandos `BLOCK`/`UNBLOCK` via MQTT para o dispositivo IoT correspondente. | Dashboard, app mobile, integrações de segurança |
+
+### Integração com outras disciplinas
+
+- **Mobile (React Native/Flutter):** consumir `/api/summary` para cards de frota e `/api/motos/<tag_id>` para telas de inspeção; comandos remotos via `/api/command`.
+- **Java (Spring Boot):** serviços corporativos podem chamar `/api/history` para ETL diário e alimentar sistemas legados; exemplo de uso com `WebClient` documentado em `docs/ARQUITETURA_INTEGRACAO.md`.
+- **.NET (C#):** integrações com sistemas de manutenção preventiva consumindo `/api/motos/<tag_id>` e disparando alertas quando `alert_level == "danger"`.
+- **Banco de Dados/BI:** acesso direto ao SQLite (`telemetry.db`) para dashboards Power BI ou queries SQL; índices otimizam consultas por `tag_id` e `server_timestamp`.
+- **DevOps:** scripts `start_backend.sh`/`.bat` automatizam setup local; deploy pode ser containerizado com Gunicorn e monitorado via métricas exibidas no dashboard.
+
+> Consulte `docs/ARQUITETURA_INTEGRACAO.md` para diagramas, snippets completos e orientações de implantação cross-disciplinar.
 
 ## Instalação e Configuração
 
@@ -461,73 +480,60 @@ MotoConnect-IoT/
 ├── start_backend.sh                # Script Linux/Mac
 ├── start_backend.bat               # Script Windows
 ├── telemetry_log.json              # Persistência de dados (gerado)
+├── telemetry.db                    # Banco de dados SQLite (gerado automaticamente)
 ├── README.md                       # Este arquivo
-├── GUIA_EXECUCAO.md               # Guia detalhado passo a passo
-├── ARQUITETURA_INTEGRACAO.md      # Documentação técnica completa
+├── GUIA_EXECUCAO.md                # Guia detalhado passo a passo
+├── docs/
+│   └── ARQUITETURA_INTEGRACAO.md   # Documentação técnica e integrações
 ├── LICENSE                         # Licença MIT
 └── MotoConnect.png                # Banner do projeto
 ```
 
-## Checklist do 3º Sprint
+## Entrega Final e Checklist do 3º Sprint
 
-### Requisitos IoT ✅
+### Entregáveis obrigatórios
 
-- [x] **3+ sensores/atuadores distintos**
-  - Sensor RFID
-  - Sensor de Bateria
-  - Sensor DHT22 (Temperatura/Umidade)
-  - LED RGB (atuador visual)
-  - Buzzer (atuador sonoro)
+- [ ] **Vídeo final (YouTube):** apresentar em ~5 minutos o fluxo completo IoT → MQTT → Backend → Dashboard (inserir link na entrega).
+- [x] **Repositório Git:** este repositório atualizado com instruções e código-fonte.
+- [ ] **Pacote `.zip` final:** incluir `README.md`, `GUIA_EXECUCAO.md`, pasta `docs/`, `app.py`, `rfid_dashboard.html`, `rfid_simulado_simples.ino`, `requirements.txt`, `start_backend.sh`, `start_backend.bat` e o link do vídeo.
 
-- [x] **Comunicação em tempo real via MQTT**
-  - Broker público: broker.hivemq.com
-  - Tópico de telemetria: `motoconnect/telemetry`
-  - Tópico de comandos: `motoconnect/commands/{tag_id}`
+Para gerar o pacote:
 
-- [x] **Interface gráfica com telemetria**
-  - Dashboard web responsivo
-  - Mapa visual do pátio
-  - Gráficos em tempo real (Chart.js)
-  - Tabelas de histórico
+```bash
+zip -r MotoConnect-IoT-final.zip README.md GUIA_EXECUCAO.md docs app.py rfid_dashboard.html rfid_simulado_simples.ino requirements.txt start_backend.sh start_backend.bat
+```
 
-- [x] **Persistência de dados**
-  - Arquivo JSON Lines: `telemetry_log.json`
-  - LocalStorage no frontend
-  - Histórico ilimitado
+### Rubrica oficial (3º sprint)
 
-- [x] **Testes funcionais com casos de uso realistas**
-  - Moto desaparecida
-  - Moto no lugar errado
-  - Bloqueio/Desbloqueio remoto
-  - Monitoramento ambiental
+| Critério | Pontos | Evidência |
+|----------|--------|-----------|
+| Funcionalidade técnica ponta a ponta | até 60 pts | Fluxo em tempo real do ESP32 → MQTT → Flask → SQLite → Dashboard com alertas. |
+| Integração com demais disciplinas | até 20 pts | APIs REST documentadas, banco SQLite, guia `docs/ARQUITETURA_INTEGRACAO.md`, scripts DevOps. |
+| Apresentação em vídeo | até 10 pts | Vídeo final demonstrando dispositivos, backend e dashboard integrados. |
+| Organização do repositório e documentação | até 10 pts | README, GUIA_EXECUCAO, pasta `docs/` e scripts atualizados. |
 
-- [x] **3 dispositivos IoT simultâneos**
-  - Suporte a múltiplas instâncias Wokwi
-  - Client IDs únicos
-  - Readers diferentes
+### Penalidades a evitar
 
-### Pontuação Esperada
+- Ausência de vídeo explicativo com todos os membros (`-20 pts`).
+- Código inconsistente com o vídeo apresentado (`-30 pts`).
+- Projeto sem conexão clara com o desafio da Mottu (`-60 pts`).
+- Interface inoperável ou dados não fluindo corretamente (`-40 pts`).
 
-| Critério | Pontos | Status |
-|----------|--------|--------|
-| Comunicação entre sensores e backend | 30 pts | ✅ Completo |
-| Dashboard com dados em tempo real | 30 pts | ✅ Completo |
-| Persistência e estruturação dos dados | 20 pts | ✅ Completo |
-| Organização do código e documentação | 20 pts | ✅ Completo |
-| **TOTAL** | **100 pts** | ✅ |
+### Checklist técnico ✅
 
-### Evitando Penalidades
+- [x] **3+ sensores/atuadores distintos** (RFID, bateria, DHT22 + LED RGB e buzzer).
+- [x] **Comunicação MQTT em tempo real** (`motoconnect/telemetry` + comandos `motoconnect/commands/{tag_id}`).
+- [x] **Persistência** em `telemetry.db` (SQLite) e `telemetry_log.json` (auditoria).
+- [x] **Dashboard** com mapa do pátio, gráficos, histórico, envio de comandos e painel de alertas em tempo real.
+- [x] **Alertas automáticos** (bateria baixa, temperatura crítica, bloqueio/área incorreta) exibidos e contabilizados.
+- [x] **APIs para integrações externas** (`/api/summary`, `/api/history`, `/api/motos/<tag_id>`).
+- [x] **3 dispositivos IoT simultâneos** simulados no Wokwi com `client_id` exclusivos.
+- [x] **Casos de uso validados**: moto desaparecida, moto fora de área, bloqueio/desbloqueio remoto e monitoramento ambiental.
 
-- [ ] Criar vídeo explicativo (5 min)
-- [x] Dashboard funcional ✅
-- [x] Dados persistidos ✅
-- [x] Integração com backend ✅
-- [x] Projeto funcional e coerente ✅
-
-## Documentação Adicional
+## Documentação Complementar
 
 - **[GUIA_EXECUCAO.md](GUIA_EXECUCAO.md)**: Passo a passo detalhado de como rodar o sistema
-- **[ARQUITETURA_INTEGRACAO.md](ARQUITETURA_INTEGRACAO.md)**: Documentação técnica completa da arquitetura
+- **[docs/ARQUITETURA_INTEGRACAO.md](docs/ARQUITETURA_INTEGRACAO.md)**: Arquitetura completa, integrações (mobile/Java/.NET/BI) e orientações DevOps
 
 ## Contribuições
 

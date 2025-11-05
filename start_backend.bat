@@ -18,10 +18,13 @@ echo.
 echo Iniciando servidor Flask na porta 5000...
 echo API disponivel em: http://localhost:5000/api/status
 echo Dashboard em: http://localhost:5000/dashboard
+echo Resumo operacional: http://localhost:5000/api/summary
+echo Historico (JSON): http://localhost:5000/api/history?limit=200
 echo.
 echo Aguardando conexoes MQTT de dispositivos IoT...
 echo Broker MQTT: broker.hivemq.com:1883
 echo Topico de telemetria: motoconnect/telemetry
+echo Banco de dados: telemetry.db (SQLite)
 echo.
 echo Pressione Ctrl+C para parar o servidor
 echo =========================================
