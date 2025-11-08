@@ -127,6 +127,7 @@ Os três sensores funcionam em paralelo para cobrir as áreas A, B e C do pátio
 
 #### Boas práticas
 - Utilize brokers autenticados em produção e proteja credenciais fora do firmware
+- Habilite TLS e credenciais dedicadas ao publicar telemetria fora do ambiente de demonstração
 - Troque `MQTT_TOPIC_TELEMETRY` e `MQTT_TOPIC_COMMAND` em ambientes multi-equipe para evitar colisões
 - Ajuste `delay()` e limites de telemetria para representar cenários reais sem sobrecarregar o backend
 

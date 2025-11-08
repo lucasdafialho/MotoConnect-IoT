@@ -123,6 +123,7 @@ var moto = JsonSerializer.Deserialize<MotoStatus>(json);
 - Scripts `start_backend.sh` e `start_backend.bat` facilitam execução local e em pipelines CI.
 - Deploy cloud: containerizar com Gunicorn + Nginx; broker MQTT pode ser um cluster EMQX gerenciado.
 - Monitoramento: expor métricas básicas (latência calculada no dashboard) e logs estruturados.
+- Segurança operacional: utilizar broker MQTT com TLS e credenciais isoladas, ajustando o backend Flask e o firmware para carregar certificados.
 
 ## 7. Entregáveis do 3º Sprint
 

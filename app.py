@@ -24,6 +24,7 @@ MQTT_TOPIC_TELEMETRY = "motoconnect/telemetry"
 MQTT_TOPIC_COMMAND_PREFIX = "motoconnect/commands/"
 
 mqtt_client = mqtt.Client()
+VALID_COMMANDS = {"BLOCK", "UNBLOCK"}
 
 
 def init_storage():
@@ -269,13 +270,16 @@ def get_moto(tag_id):
 @app.route('/api/command', methods=['POST'])
 def send_command():
     data = request.json
-    tag_id = data.get('tag_id')
-    if tag_id:
-        tag_id = str(tag_id).upper()
-    command = data.get('command')
+    tag_value = data.get('tag_id')
+    tag_id = str(tag_value).strip().upper() if tag_value else ''
+    command_value = data.get('command')
+    command = str(command_value).strip().upper() if command_value else ''
 
     if not tag_id or not command:
         return jsonify({"status": "error", "message": "tag_id e command são obrigatórios"}), 400
+
+    if command not in VALID_COMMANDS:
+        return jsonify({"status": "error", "message": "Comando inválido"}), 400
 
     command_topic = f"{MQTT_TOPIC_COMMAND_PREFIX}{tag_id}"
     command_payload = json.dumps({"tag_id": tag_id, "command": command})

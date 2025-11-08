@@ -227,6 +227,7 @@ Garante que as leituras estejam sendo persistidas para auditoria e consumo por B
 ### Backend não conecta ao MQTT
 - Verifique conexão com internet
 - Tente outro broker: `test.mosquitto.org`
+- Em produção configure broker com TLS e credenciais dedicadas e atualize as variáveis do backend e do firmware
 
 ### Dashboard não atualiza
 1. Abra DevTools (F12)

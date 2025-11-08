@@ -39,6 +39,29 @@ MotoInfo motosDB[] = {
   {"55667788", "Suzuki Yes 125", "GHI3456", "Disponível", "Patio C - Saída", 11.9}
 };
 
+String readerId = "READER_001";
+
+String resolveReaderId() {
+  String client = MQTT_CLIENT_ID;
+  String digits = "";
+  for (int i = client.length() - 1; i >= 0; i--) {
+    char ch = client[i];
+    if (ch >= '0' && ch <= '9') {
+      digits = String(ch) + digits;
+      if (digits.length() == 3) {
+        break;
+      }
+    }
+  }
+  if (digits.length() == 0) {
+    return "READER_GENERIC";
+  }
+  while (digits.length() < 3) {
+    digits = "0" + digits;
+  }
+  return "READER_" + digits;
+}
+
 void setup_wifi() {
   Serial.println("Conectando ao WiFi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -127,6 +150,8 @@ void setup() {
   client.setServer(MQTT_BROKER, MQTT_PORT);
   client.setCallback(callback);
   
+  readerId = resolveReaderId();
+
   Serial.println("Sistema MotoConnect IoT Inicializado!");
   Serial.println("Sensores: RFID, Bateria, Temperatura/Umidade");
   Serial.println("Atuadores: LEDs (Status), Buzzer (Alarme)");
@@ -160,7 +185,7 @@ void loop() {
   doc["bateria"] = String(moto.bateria, 2);
   doc["temperatura"] = String(temperatura, 1);
   doc["umidade"] = String(umidade, 1);
-  doc["reader_id"] = "READER_001";
+  doc["reader_id"] = readerId;
   doc["timestamp"] = millis();
 
   char json_buffer[384];
